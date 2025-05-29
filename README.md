@@ -1,0 +1,1 @@
+# check-afiliado-st
