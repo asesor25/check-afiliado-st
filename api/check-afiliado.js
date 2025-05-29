@@ -5,7 +5,7 @@ export default async function handler(req, res) {
   const cc = req.query.cc;
   if (!cc) return res.status(400).json({ error: 'Falta parámetro cc' });
 
-  // Lanza Chromium en modo headless
+  // 1) Lanzar navegador headless
   const browser = await puppeteer.launch({
     args: chromium.args,
     executablePath: await chromium.executablePath,
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   });
   const page = await browser.newPage();
 
-  // 1) Login
+  // 2) Login
   await page.goto('https://transaccional.saludtotal.com.co/SaludTotal.Comerce/Login.aspx');
   await page.type('#txtUserName', process.env.SALUD_USER);
   await page.type('#txtPassword', process.env.SALUD_PASS);
@@ -22,16 +22,32 @@ export default async function handler(req, res) {
     page.waitForNavigation({ waitUntil: 'networkidle0' })
   ]);
 
-  // 2) Consulta afiliado
-  await page.goto('https://transaccional.saludtotal.com.co/SaludTotal.Comerce/ConsultaAfiliado.aspx');
+  // 3) Navegar a Estado Afiliación Grupo Familiar
+  await page.goto('https://transaccional.saludtotal.com.co/SaludTotal.Comerce/ConsultaAfiliado/EstadoAfiliacionGrupoFamiliar.aspx');
+
+  // 4) Seleccionar tipo de identificación (opcional)
+  await page.select('#ddlTipoIdentificacion', 'CEDULA_CIUDADANIA');
+
+  // 5) Escribir el documento y buscar
   await page.type('#txtDocumento', cc);
   await Promise.all([
-    page.click('#btnBuscar'),
-    page.waitForSelector('#lblEstado')
+    page.click('#btnBuscar'),            // Botón “Aceptar”
+    page.waitForSelector('#tblResultados') // ID de la tabla de resultados
   ]);
 
-  // 3) Captura estado y responde JSON
-  const estado = await page.$eval('#lblEstado', el => el.textContent.trim());
+  // 6) Extraer estado detallado (columna 5 de la fila 2)
+  const estadoDetallado = await page.$eval(
+    '#tblResultados tr:nth-child(2) td:nth-child(5)',
+    td => td.textContent.trim()
+  );
+
   await browser.close();
-  res.json({ afiliado: estado === 'Activo' });
+
+  // 7) Responder JSON
+  res.json({
+    afiliado: Boolean(estadoDetallado),
+    estado_detallado: estadoDetallado || null
+  });
+}
+
 }
