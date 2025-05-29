@@ -1,0 +1,8 @@
+{
+  "name": "check-afiliado-st",
+  "version": "1.0.0",
+  "dependencies": {
+    "chrome-aws-lambda": "^10.1.0",
+    "puppeteer-core": "^10.2.0"
+  }
+}
